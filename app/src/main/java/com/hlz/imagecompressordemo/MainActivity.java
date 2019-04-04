@@ -9,8 +9,8 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.FileProvider;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -19,17 +19,27 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.hlz.imagecompressordemo.Util.FileUtil;
+import com.hlz.imagecompressordemo.Util.ToastUtil;
 import com.nanchen.compresshelper.CompressHelper;
 import com.yanzhenjie.permission.Action;
 import com.yanzhenjie.permission.AndPermission;
 import com.yanzhenjie.permission.Permission;
+import com.zxy.tiny.Tiny;
+import com.zxy.tiny.callback.FileCallback;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import top.zibin.luban.Luban;
+import top.zibin.luban.OnCompressListener;
 
 /***
  * 照片压缩的demo
@@ -118,29 +128,107 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private final static int SIZE = 50;
+    private final static int SIZE = 150;
     private final static int WIDTH = 480;
     private final static int HEIGHT = 720;
-    private final static int QUALITY = 80;
+    private final static int QUALITY = 90;
 
     private void compress() {
         compresshelperPic();
         compresshelperPic2WEBP();
-        Toast.makeText(this.getApplicationContext(), "成功", Toast.LENGTH_SHORT).show();
+        compressHelpPicByLuBan();
+        compressHelpbyTiny();
     }
 
     //第一种压缩方法
     private void compresshelperPic() {
+        File backFile = new File(mCurrentPicPath + "-compresshelper");
+
         File file = new CompressHelper.Builder(this).setMaxHeight(HEIGHT).setMaxWidth(WIDTH).setQuality(QUALITY).setMaxSize(SIZE)
-                .setCompressFormat(Bitmap.CompressFormat.JPEG).setFileName(mCurrentPicPath + "-compresshelper").setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+                .setCompressFormat(Bitmap.CompressFormat.JPEG).setFileName(backFile.getName()).setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+        if (!file.exists()) {
+            ToastUtil.showShortText("miss");
+        }
     }
 
     //第二种压缩方法
     private void compresshelperPic2WEBP() {
+        File backFile = new File(mCurrentPicPath + "-compresshelper");
         File file = new CompressHelper.Builder(this).setMaxHeight(HEIGHT).setMaxWidth(WIDTH).setQuality(QUALITY).setMaxSize(SIZE)
-                .setCompressFormat(Bitmap.CompressFormat.WEBP).setFileName(mCurrentPicPath + "-compresshelperWebp").setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+                .setCompressFormat(Bitmap.CompressFormat.WEBP).setFileName(backFile.getName()).setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+//        if (!file.exists()) {
+//            ToastUtil.showShortText("miss");
+//        }
     }
 
+    private void compressHelpPicByLuBan() {
+        final File backFile = new File(mCurrentPicPath + "-luban.jpeg");
+        Luban.with(this)
+                .load(new File(mCurrentPicPath))
+                .setTargetDir(FileUtil.getPreferredDir("images"))
+                .ignoreBy(100)                                  // 忽略不压缩图片的大小
+                .setCompressListener(new OnCompressListener() { //设置回调
+                    @Override
+                    public void onStart() {
+                        // TODO 压缩开始前调用，可以在方法内启动 loading UI
+                    }
+
+                    @Override
+                    public void onSuccess(File file) {
+                        // TODO 压缩成功后调用，返回压缩后的图片文件
+                        Log.i("Luban", file.getAbsolutePath());
+                        try {
+                            copyFileUsingFileStreams(file, backFile);
+                        } catch (Exception e) {
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        ToastUtil.showShortText(e.getMessage());
+                        Log.i("Luban", e.toString());
+                    }
+                }).launch();    //启动压缩
+    }
+
+    private void compressHelpbyTiny() {
+        final File backFile = new File(mCurrentPicPath + "-Tiny.jpeg");
+        Tiny.getInstance().init(this.getApplication());
+        Tiny.FileCompressOptions options = new Tiny.FileCompressOptions();
+        options.height = HEIGHT;
+        options.width = WIDTH;
+        options.size = SIZE;
+        options.quality=QUALITY;
+        options.outfile = backFile.getAbsolutePath();
+        Tiny.getInstance().source(mCurrentPicPath).asFile().withOptions(options).compress(new FileCallback() {
+            @Override
+            public void callback(boolean isSuccess, String outfile, Throwable t) {
+                ToastUtil.showShortText(isSuccess + "");
+            }
+        });
+
+//        FileResult result = Tiny.getInstance().source("").asFile().withOptions(options).compressSync();
+    }
+
+
+    private static void copyFileUsingFileStreams(File source, File dest)
+            throws IOException {
+        InputStream input =
+                null;
+        OutputStream output = null;
+        try {
+            input = new FileInputStream(source);
+            output = new FileOutputStream(dest);
+            byte[] buf = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = input.read(buf)) > 0) {
+                output.write(buf, 0, bytesRead);
+            }
+        } finally {
+            input.close();
+            output.close();
+        }
+    }
 //    /**
 //     * A native method that is implemented by the 'native-lib' native library,
 //     * which is packaged with this application.
