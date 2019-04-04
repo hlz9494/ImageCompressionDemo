@@ -1,6 +1,7 @@
 package com.hlz.imagecompressordemo;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -8,6 +9,7 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.FileProvider;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
@@ -17,6 +19,7 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.hlz.imagecompressordemo.Util.FileUtil;
+import com.nanchen.compresshelper.CompressHelper;
 import com.yanzhenjie.permission.Action;
 import com.yanzhenjie.permission.AndPermission;
 import com.yanzhenjie.permission.Permission;
@@ -54,8 +57,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
         requestPermission(new String[]{Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE, Permission.ACCESS_FINE_LOCATION, Permission.ACCESS_FINE_LOCATION, Permission.CAMERA});
-
-
     }
 
     private void requestPermission(String[]... permissions) {
@@ -85,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
             File file = new File(FileUtil.getPreferredDir("images"),
                     String.format("%d.jpg", System.currentTimeMillis()));
             mCurrentPicPath = file.getAbsolutePath();
-            Uri uri = FileProvider.getUriForFile(this,"com.hlz.imagecompressordemo.hlz", file);
+            Uri uri = FileProvider.getUriForFile(this, "com.hlz.imagecompressordemo.hlz", file);
 
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
@@ -109,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
     public void onViewClicked(View view) {
         switch (view.getId()) {
             case R.id.button:
-
+                compress();
                 break;
             case R.id.button2:
                 takePhoto();
@@ -117,6 +118,28 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private final static int SIZE = 50;
+    private final static int WIDTH = 480;
+    private final static int HEIGHT = 720;
+    private final static int QUALITY = 80;
+
+    private void compress() {
+        compresshelperPic();
+        compresshelperPic2WEBP();
+        Toast.makeText(this.getApplicationContext(), "成功", Toast.LENGTH_SHORT).show();
+    }
+
+    //第一种压缩方法
+    private void compresshelperPic() {
+        File file = new CompressHelper.Builder(this).setMaxHeight(HEIGHT).setMaxWidth(WIDTH).setQuality(QUALITY).setMaxSize(SIZE)
+                .setCompressFormat(Bitmap.CompressFormat.JPEG).setFileName(mCurrentPicPath + "-compresshelper").setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+    }
+
+    //第二种压缩方法
+    private void compresshelperPic2WEBP() {
+        File file = new CompressHelper.Builder(this).setMaxHeight(HEIGHT).setMaxWidth(WIDTH).setQuality(QUALITY).setMaxSize(SIZE)
+                .setCompressFormat(Bitmap.CompressFormat.WEBP).setFileName(mCurrentPicPath + "-compresshelperWebp").setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+    }
 
 //    /**
 //     * A native method that is implemented by the 'native-lib' native library,
