@@ -1,7 +1,13 @@
 package com.hlz.imagecompressordemo;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
@@ -9,10 +15,13 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
+import com.hlz.imagecompressordemo.Util.FileUtil;
 import com.yanzhenjie.permission.Action;
 import com.yanzhenjie.permission.AndPermission;
 import com.yanzhenjie.permission.Permission;
 
+import java.io.File;
 import java.util.List;
 
 import butterknife.BindView;
@@ -32,6 +41,10 @@ public class MainActivity extends AppCompatActivity {
     Button button2;
     @BindView(R.id.imageView)
     ImageView imageView;
+
+    String mCurrentPicPath;
+
+    public final static int REQUEST_CODE_TAKE_PHOTO = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,16 +76,43 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .start();
+
     }
 
+    private void takePhoto() {
+        String state = Environment.getExternalStorageState();
+        if (state.equals(Environment.MEDIA_MOUNTED)) {
+            File file = new File(FileUtil.getPreferredDir("images"),
+                    String.format("%d.jpg", System.currentTimeMillis()));
+            mCurrentPicPath = file.getAbsolutePath();
+            Uri uri = FileProvider.getUriForFile(this,"com.hlz.imagecompressordemo.hlz", file);
 
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+            startActivityForResult(intent, REQUEST_CODE_TAKE_PHOTO);
+        } else {
+
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_TAKE_PHOTO && resultCode == RESULT_OK) {
+            if (mCurrentPicPath != null && mCurrentPicPath.length() != 0) {
+                Glide.with(this).load(Uri.fromFile(new File(mCurrentPicPath))).into(imageView);
+            }
+        }
+    }
 
     @OnClick({R.id.button, R.id.button2})
     public void onViewClicked(View view) {
         switch (view.getId()) {
             case R.id.button:
+
                 break;
             case R.id.button2:
+                takePhoto();
                 break;
         }
     }
