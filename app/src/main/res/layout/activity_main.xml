@@ -55,5 +55,23 @@
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@mipmap/ic_launcher" />
 
+    <EditText
+        android:id="@+id/et_width"
+        android:layout_width="80dp"
+        android:layout_height="40dp"
+        android:singleLine="true"
+        android:text="480"
+        app:layout_constraintBottom_toTopOf="@+id/et_heigh"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <EditText
+        android:id="@+id/et_heigh"
+        android:layout_width="80dp"
+        android:layout_height="40dp"
+        android:singleLine="true"
+        android:text="720"
+        app:layout_constraintBottom_toTopOf="@+id/button2"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 
 </android.support.constraint.ConstraintLayout>

@@ -3,6 +3,7 @@ package com.hlz.imagecompressordemo;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -13,6 +14,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,6 +35,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Date;
 import java.util.List;
 
 import butterknife.BindView;
@@ -54,6 +57,12 @@ public class MainActivity extends AppCompatActivity {
     Button button2;
     @BindView(R.id.imageView)
     ImageView imageView;
+
+    @BindView(R.id.et_heigh)
+    EditText et_height;
+
+    @BindView(R.id.et_width)
+    EditText et_width;
 
     String mCurrentPicPath;
 
@@ -96,7 +105,12 @@ public class MainActivity extends AppCompatActivity {
             File file = new File(FileUtil.getPreferredDir("images"),
                     String.format("%d.jpg", System.currentTimeMillis()));
             mCurrentPicPath = file.getAbsolutePath();
-            Uri uri = FileProvider.getUriForFile(this, "com.hlz.imagecompressordemo.hlz", file);
+            Uri uri = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                uri = FileProvider.getUriForFile(this, "com.hlz.imagecompressordemo.hlz", file);
+            } else {
+                uri = Uri.fromFile(file);
+            }
 
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
@@ -120,18 +134,20 @@ public class MainActivity extends AppCompatActivity {
     public void onViewClicked(View view) {
         switch (view.getId()) {
             case R.id.button:
-                compress();
+//                compress();
+                compressDifferentConfig(null);
                 break;
+
             case R.id.button2:
                 takePhoto();
                 break;
         }
     }
 
-    private final static int SIZE = 150;
+    private final static int SIZE = 50;
     private final static int WIDTH = 480;
     private final static int HEIGHT = 720;
-    private final static int QUALITY = 90;
+    private final static int QUALITY = 80;
 
     private void compress() {
         compresshelperPic();
@@ -140,11 +156,75 @@ public class MainActivity extends AppCompatActivity {
         compressHelpbyTiny();
     }
 
+    private void compressDifferentConfig(Bitmap.CompressFormat format) {
+        if (format == null) {
+            compressHelp(Bitmap.CompressFormat.JPEG, Bitmap.Config.ARGB_8888, "-ARGB_8888");
+            compressHelp(Bitmap.CompressFormat.JPEG, Bitmap.Config.ARGB_4444, "-ARGB_4444");
+            compressHelp(Bitmap.CompressFormat.JPEG, Bitmap.Config.RGB_565, "-RGB_565");
+
+            compressHelp(Bitmap.CompressFormat.WEBP, Bitmap.Config.ARGB_8888, "-ARGB_8888");
+            compressHelp(Bitmap.CompressFormat.WEBP, Bitmap.Config.ARGB_4444, "-ARGB_4444");
+            compressHelp(Bitmap.CompressFormat.WEBP, Bitmap.Config.RGB_565, "-RGB_565");
+            return;
+        } else {
+            compressHelp(format, Bitmap.Config.ARGB_8888, "-ARGB_8888");
+            compressHelp(format, Bitmap.Config.ARGB_4444, "-ARGB_4444");
+            compressHelp(format, Bitmap.Config.RGB_565, "-RGB_565");
+        }
+    }
+
+    private void compressHelp(Bitmap.CompressFormat format, Bitmap.Config config, String tag) {
+        int temp_height = 0;
+        int temp_width = 0;
+        try {
+            temp_height = Integer.parseInt(et_height.getText().toString());
+            temp_width = Integer.parseInt(et_width.getText().toString());
+        } catch (Exception e) {
+            ToastUtil.showShortText("Exception");
+            Log.i("compress",e.toString());
+            temp_height = HEIGHT;
+            temp_width = WIDTH;
+        } finally {
+            if (temp_height == 0 || temp_width == 0) {
+                temp_height = HEIGHT;
+                temp_width = WIDTH;
+            }
+        }
+        Date start = new Date();
+        File backFile = new File(mCurrentPicPath + tag);
+
+        File file = new CompressHelper.Builder(this).setMaxHeight(temp_height).setMaxWidth(temp_width).setQuality(QUALITY).setMaxSize(SIZE)
+                .setCompressFormat(format).setFileName(backFile.getName()).setBitmapConfig(config).setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
+        if (!file.exists()) {
+            ToastUtil.showShortText("miss");
+        }
+        Date end = new Date();
+        Log.i("compress", tag + " " + format.toString() + " costTime " + (end.getTime() - start.getTime()));
+        Log.i("compress", tag + " file length " + file.length() / 1024);
+
+    }
+
+
     //第一种压缩方法
     private void compresshelperPic() {
+        int temp_height = 0;
+        int temp_width = 0;
+        try {
+            temp_height = Integer.parseInt(et_height.getText().toString());
+            temp_width = Integer.parseInt(et_width.getText().toString());
+        } catch (Exception e) {
+            ToastUtil.showShortText("Exception");
+            temp_height = HEIGHT;
+            temp_width = WIDTH;
+        } finally {
+            if (temp_height == 0 || temp_width == 0) {
+                temp_height = HEIGHT;
+                temp_width = WIDTH;
+            }
+        }
         File backFile = new File(mCurrentPicPath + "-compresshelper");
 
-        File file = new CompressHelper.Builder(this).setMaxHeight(HEIGHT).setMaxWidth(WIDTH).setQuality(QUALITY).setMaxSize(SIZE)
+        File file = new CompressHelper.Builder(this).setMaxHeight(temp_height).setMaxWidth(temp_width).setQuality(QUALITY).setMaxSize(SIZE)
                 .setCompressFormat(Bitmap.CompressFormat.JPEG).setFileName(backFile.getName()).setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
         if (!file.exists()) {
             ToastUtil.showShortText("miss");
@@ -153,12 +233,27 @@ public class MainActivity extends AppCompatActivity {
 
     //第二种压缩方法
     private void compresshelperPic2WEBP() {
+        int temp_height = 0;
+        int temp_width = 0;
+        try {
+            temp_height = Integer.parseInt(et_height.getText().toString());
+            temp_width = Integer.parseInt(et_width.getText().toString());
+        } catch (Exception e) {
+            ToastUtil.showShortText("Exception");
+            temp_height = HEIGHT;
+            temp_width = WIDTH;
+        } finally {
+            if (temp_height == 0 || temp_width == 0) {
+                temp_height = HEIGHT;
+                temp_width = WIDTH;
+            }
+        }
         File backFile = new File(mCurrentPicPath + "-compresshelper");
-        File file = new CompressHelper.Builder(this).setMaxHeight(HEIGHT).setMaxWidth(WIDTH).setQuality(QUALITY).setMaxSize(SIZE)
+        File file = new CompressHelper.Builder(this).setMaxHeight(temp_height).setMaxWidth(temp_width).setQuality(QUALITY).setMaxSize(SIZE)
                 .setCompressFormat(Bitmap.CompressFormat.WEBP).setFileName(backFile.getName()).setDestinationDirectoryPath(FileUtil.getPreferredDir("images")).build().compressToFile(new File(mCurrentPicPath));
 //        if (!file.exists()) {
 //            ToastUtil.showShortText("miss");
-//        }
+//
     }
 
     private void compressHelpPicByLuBan() {
@@ -192,13 +287,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void compressHelpbyTiny() {
+        int temp_height = 0;
+        int temp_width = 0;
+        try {
+            temp_height = Integer.parseInt(et_height.getText().toString());
+            temp_width = Integer.parseInt(et_width.getText().toString());
+        } catch (Exception e) {
+            ToastUtil.showShortText("Exception");
+            temp_height = HEIGHT;
+            temp_width = WIDTH;
+        } finally {
+            if (temp_height == 0 || temp_width == 0) {
+                temp_height = HEIGHT;
+                temp_width = WIDTH;
+            }
+        }
+
         final File backFile = new File(mCurrentPicPath + "-Tiny.jpeg");
         Tiny.getInstance().init(this.getApplication());
         Tiny.FileCompressOptions options = new Tiny.FileCompressOptions();
-        options.height = HEIGHT;
-        options.width = WIDTH;
+        options.height = temp_height;
+        options.width = temp_width;
         options.size = SIZE;
-        options.quality=QUALITY;
+        options.quality = QUALITY;
         options.outfile = backFile.getAbsolutePath();
         Tiny.getInstance().source(mCurrentPicPath).asFile().withOptions(options).compress(new FileCallback() {
             @Override
@@ -207,7 +318,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-//        FileResult result = Tiny.getInstance().source("").asFile().withOptions(options).compressSync();
     }
 
 

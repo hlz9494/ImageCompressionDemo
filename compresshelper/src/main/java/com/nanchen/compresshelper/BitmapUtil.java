@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -225,6 +226,7 @@ public class BitmapUtil {
             } else {
                 baos = new ByteArrayOutputStream();
                 bitmap.compress(compressFormat, quality, baos);
+                Log.i("compress", "------------------->compress over!!!");
                 while (baos.toByteArray().length / 1024 > maxSize) {
                     baos.reset();
                     quality -= 5;
@@ -233,6 +235,7 @@ public class BitmapUtil {
                         bitmap.compress(compressFormat, 80, baos);
                         break;
                     } else {
+                        Log.i("compress", "--------->do compress!!!");
                         bitmap.compress(compressFormat, quality, baos);
                     }
                 }
